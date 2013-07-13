@@ -64,7 +64,7 @@ function! s:findTargetFwd(pos, cnt, text)
 
   while cnt > 0
     let seek = s:seekindex(a:text, l:c1, l:c2, l:pos,
-      \ 'stridx', 's:compareSeekFwd')
+      \ 's:MLstridx', 's:compareSeekFwd')
     let l:pos = l:seek + 1 " so as to not repeatedly find the same occurence
     let l:cnt = l:cnt - 1
   endwhile
@@ -86,7 +86,7 @@ function! s:findTargetBwd(pos, cnt, text)
   while cnt > 0
     let haystack = a:text[: l:pos - 1]
     let seek = s:seekindex(l:haystack, l:c1, l:c2, len(l:haystack),
-      \ 'strridx', 's:compareSeekBwd')
+      \ 's:MLstrridx', 's:compareSeekBwd')
     let l:pos = l:seek - 1 " so as to not repeatedly find the same occurence
     let l:cnt = l:cnt - 1
   endwhile
@@ -160,7 +160,8 @@ function! s:seek(plus)
   let line = getline('.')
   let seek = s:findTargetFwd(l:pos, v:count1, l:line)
   if l:seek != -1
-    call cursor(line('.'), 1 + l:seek + a:plus)
+    "call cursor(line('.'), 1 + l:seek + a:plus)
+    call cursor(s:foundLine, 1 + s:foundColumn + a:plus)
   endif
 endfunction
 
@@ -175,7 +176,8 @@ function! s:seekBack(plus)
   let line = getline('.')
   let seek = s:findTargetBwd(l:pos, v:count1, l:line)
   if l:seek != -1
-    call cursor(line('.'), 1 + l:seek + a:plus)
+    "call cursor(line('.'), 1 + l:seek + a:plus)
+    call cursor(s:foundLine, 1 + s:foundColumn + a:plus)
   endif
 endfunction
 
@@ -189,7 +191,8 @@ function! s:seekJumpPresential(textobj)
   let line = getline('.')
   let seek = s:findTargetFwd(l:pos, v:count1, l:line)
   if l:seek != -1
-    call cursor(line('.'), 1 + l:seek)
+    "call cursor(line('.'), 1 + l:seek)
+    call cursor(s:foundLine, 1 + s:foundColumn)
     execute 'normal! v'.a:textobj
   endif
 endfunction
@@ -199,7 +202,8 @@ function! s:seekBackJumpPresential(textobj)
   let line = getline('.')
   let seek = s:findTargetBwd(l:pos, v:count1, l:line)
   if l:seek != -1
-    call cursor(line('.'), 1 + l:seek)
+    "call cursor(line('.'), 1 + l:seek)
+    call cursor(s:foundLine, 1 + s:foundColumn)
     execute 'normal! v'.a:textobj
   endif
 endfunction
@@ -214,7 +218,8 @@ function! s:seekJumpRemote(textobj)
   call s:registerCommand('CursorMoved', cmd, 'remoteJump')
 
   if l:seek != -1
-    call cursor(line('.'), 1 + l:seek)
+    "call cursor(line('.'), 1 + l:seek)
+    call cursor(s:foundLine, 1 + s:foundColumn)
     execute 'normal! v'.a:textobj
   endif
 endfunction
@@ -234,9 +239,74 @@ function! s:seekBackJumpRemote(textobj)
   call s:registerCommand('CursorMoved', cmd, 'remoteJump')
 
   if l:seek != -1
-    call cursor(line('.'), 1 + l:seek)
+    "call cursor(line('.'), 1 + l:seek)
+    call cursor(s:foundLine, 1 + s:foundColumn)
     execute 'normal! v'.a:textobj
   endif
+endfunction
+
+function! s:MLstridx(haystack, needle, start)
+  if get(g:, "seek_multi_line", 0) == 0
+    return stridx(a:haystack, a:needle, a:start)
+  endif
+  let haystack = a:haystack
+  let start = a:start
+  let startLine = line(".")
+  let currentLine = startLine
+  let countAdd = 0    " The goal here was to count the number of chars moved - seems not neccessary
+  while 1
+    let found = stridx(haystack, a:needle, start)
+    if found != -1
+      " Because multi-line seek needs to return both line and column, we "return" them by setting script vars (yuck!)
+      let s:foundLine = currentLine
+      let s:foundColumn = found
+      return countAdd + found
+    endif
+    " Advance to next line
+    let currentLine += 1
+    if currentLine > line("$")
+      let currentLine = 1
+    endif
+    if currentLine == startLine
+      break
+    endif
+    let countAdd += strlen(haystack)-start + ( strlen(haystack) == 0 ? 1 : 0 )
+    let haystack = getline(currentLine)
+    let start = 0
+  endwhile
+  return -1
+endfunction
+
+function! s:MLstrridx(haystack, needle, start)
+  if get(g:, "seek_multi_line", 0) == 0
+    return strridx(a:haystack, a:needle, a:start)
+  endif
+  let haystack = a:haystack
+  let start = a:start
+  let startLine = line(".")
+  let currentLine = startLine
+  let countAdd = 0    " The goal here was to count the number of chars moved - seems not neccessary
+  while 1
+    let found = strridx(haystack, a:needle, start)
+    if found != -1
+      " Because multi-line seek needs to return both line and column, we "return" them by setting script vars (yuck!)
+      let s:foundLine = currentLine
+      let s:foundColumn = found
+      return countAdd + (start - found)
+    endif
+    " Retreat to previous line
+    let currentLine -= 1
+    if currentLine == 0
+      let currentLine = line("$")
+    endif
+    if currentLine == startLine
+      break
+    endif
+    let countAdd += start + ( strlen(haystack) == 0 ? 1 : 0 )
+    let haystack = getline(currentLine)
+    let start = strlen(haystack)
+  endwhile
+  return -1
 endfunction
 
 " credit: Luc Hermitte
