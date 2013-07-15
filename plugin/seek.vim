@@ -62,10 +62,18 @@ function! s:findTargetFwd(pos, cnt, text)
   let pos = a:pos
   let cnt = a:cnt
 
+  let l:haystack = a:text
+  let s:onLine = line(".")
   while cnt > 0
-    let seek = s:seekindex(a:text, l:c1, l:c2, l:pos,
+    let seek = s:seekindex(l:haystack, l:c1, l:c2, l:pos,
       \ 's:MLstridx', 's:compareSeekFwd')
-    let l:pos = l:seek + 1 " so as to not repeatedly find the same occurence
+    if get(g:, "seek_multi_line", 0) == 0
+      let l:pos = l:seek + 1 " so as to not repeatedly find the same occurence
+    else
+      let l:pos = s:foundColumn + 1
+      let l:haystack = getline(s:foundLine)
+      let s:onLine = s:foundLine
+    endif
     let l:cnt = l:cnt - 1
   endwhile
 
@@ -83,11 +91,18 @@ function! s:findTargetBwd(pos, cnt, text)
   let pos = a:pos
   let cnt = a:cnt
 
+  let haystack = a:text[: l:pos - 1]
+  let s:onLine = line(".")
   while cnt > 0
-    let haystack = a:text[: l:pos - 1]
     let seek = s:seekindex(l:haystack, l:c1, l:c2, len(l:haystack),
       \ 's:MLstrridx', 's:compareSeekBwd')
-    let l:pos = l:seek - 1 " so as to not repeatedly find the same occurence
+    if get(g:, "seek_multi_line", 0) == 0
+      let l:pos = l:seek - 1 " so as to not repeatedly find the same occurence
+    else
+      let l:pos = s:foundColumn - 1
+      let l:haystack = getline(s:foundLine)[: l:pos - 1]
+      let s:onLine = s:foundLine
+    endif
     let l:cnt = l:cnt - 1
   endwhile
 
@@ -160,8 +175,11 @@ function! s:seek(plus)
   let line = getline('.')
   let seek = s:findTargetFwd(l:pos, v:count1, l:line)
   if l:seek != -1
-    "call cursor(line('.'), 1 + l:seek + a:plus)
-    call cursor(s:foundLine, 1 + s:foundColumn + a:plus)
+    if get(g:, "seek_multi_line", 0) == 0
+      call cursor(line('.'), 1 + l:seek + a:plus)
+    else
+      call cursor(s:foundLine, 1 + s:foundColumn + a:plus)
+    endif
   endif
 endfunction
 
@@ -176,8 +194,11 @@ function! s:seekBack(plus)
   let line = getline('.')
   let seek = s:findTargetBwd(l:pos, v:count1, l:line)
   if l:seek != -1
-    "call cursor(line('.'), 1 + l:seek + a:plus)
-    call cursor(s:foundLine, 1 + s:foundColumn + a:plus)
+    if get(g:, "seek_multi_line", 0) == 0
+      call cursor(line('.'), 1 + l:seek + a:plus)
+    else
+      call cursor(s:foundLine, 1 + s:foundColumn + a:plus)
+    endif
   endif
 endfunction
 
@@ -191,8 +212,11 @@ function! s:seekJumpPresential(textobj)
   let line = getline('.')
   let seek = s:findTargetFwd(l:pos, v:count1, l:line)
   if l:seek != -1
-    "call cursor(line('.'), 1 + l:seek)
-    call cursor(s:foundLine, 1 + s:foundColumn)
+    if get(g:, "seek_multi_line", 0) == 0
+      call cursor(line('.'), 1 + l:seek)
+    else
+      call cursor(s:foundLine, 1 + s:foundColumn)
+    endif
     execute 'normal! v'.a:textobj
   endif
 endfunction
@@ -202,8 +226,11 @@ function! s:seekBackJumpPresential(textobj)
   let line = getline('.')
   let seek = s:findTargetBwd(l:pos, v:count1, l:line)
   if l:seek != -1
-    "call cursor(line('.'), 1 + l:seek)
-    call cursor(s:foundLine, 1 + s:foundColumn)
+    if get(g:, "seek_multi_line", 0) == 0
+      call cursor(line('.'), 1 + l:seek)
+    else
+      call cursor(s:foundLine, 1 + s:foundColumn)
+    endif
     execute 'normal! v'.a:textobj
   endif
 endfunction
@@ -218,8 +245,11 @@ function! s:seekJumpRemote(textobj)
   call s:registerCommand('CursorMoved', cmd, 'remoteJump')
 
   if l:seek != -1
-    "call cursor(line('.'), 1 + l:seek)
-    call cursor(s:foundLine, 1 + s:foundColumn)
+    if get(g:, "seek_multi_line", 0) == 0
+      call cursor(line('.'), 1 + l:seek)
+    else
+      call cursor(s:foundLine, 1 + s:foundColumn)
+    endif
     execute 'normal! v'.a:textobj
   endif
 endfunction
@@ -239,8 +269,11 @@ function! s:seekBackJumpRemote(textobj)
   call s:registerCommand('CursorMoved', cmd, 'remoteJump')
 
   if l:seek != -1
-    "call cursor(line('.'), 1 + l:seek)
-    call cursor(s:foundLine, 1 + s:foundColumn)
+    if get(g:, "seek_multi_line", 0) == 0
+      call cursor(line('.'), 1 + l:seek)
+    else
+      call cursor(s:foundLine, 1 + s:foundColumn)
+    endif
     execute 'normal! v'.a:textobj
   endif
 endfunction
@@ -251,7 +284,7 @@ function! s:MLstridx(haystack, needle, start)
   endif
   let haystack = a:haystack
   let start = a:start
-  let startLine = line(".")
+  let startLine = s:onLine
   let currentLine = startLine
   let countAdd = 0    " The goal here was to count the number of chars moved - seems not neccessary
   while 1
@@ -283,7 +316,7 @@ function! s:MLstrridx(haystack, needle, start)
   endif
   let haystack = a:haystack
   let start = a:start
-  let startLine = line(".")
+  let startLine = s:onLine
   let currentLine = startLine
   let countAdd = 0    " The goal here was to count the number of chars moved - seems not neccessary
   while 1

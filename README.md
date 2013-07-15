@@ -40,11 +40,9 @@ As expected, all these advanced mappings are complemented by their capital lette
 
 ### Customization
 
-Initial support for seeking over multiple lines has been added.  It can be enabled or disabled at runtime.
+Support for seeking over multiple lines has been added.  It can be enabled or disabled at runtime.
 
 `let g:seek_multi_line = 1`
-
-It currently ignores counts when the target is on a different line, acting as if the count was 1.
 
 You can customize any of the keys that seek binds by adding lines such as the following to your vimrc.
 
