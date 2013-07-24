@@ -64,6 +64,8 @@ function! s:findTargetFwd(pos, cnt, text)
 
   let l:haystack = a:text
   let s:onLine = line(".")
+  let s:foundLine = s:onLine
+  let s:foundColumn = l:pos
   while cnt > 0
     let seek = s:seekindex(l:haystack, l:c1, l:c2, l:pos,
       \ 's:MLstridx', 's:compareSeekFwd')
@@ -93,6 +95,8 @@ function! s:findTargetBwd(pos, cnt, text)
 
   let haystack = a:text[: l:pos - 1]
   let s:onLine = line(".")
+  let s:foundLine = s:onLine
+  let s:foundColumn = l:pos
   while cnt > 0
     let seek = s:seekindex(l:haystack, l:c1, l:c2, len(l:haystack),
       \ 's:MLstrridx', 's:compareSeekBwd')
